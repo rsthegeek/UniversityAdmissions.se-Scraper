@@ -7,9 +7,12 @@ import org.jsoup.select.Elements;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class App {
 
@@ -29,7 +32,14 @@ public class App {
             String paceOfStudy,
             String instructionalTime,
             String[] subjectAreas          // as requested: array of strings
-    ) {}
+    ) {
+        public void enterListIfEligible(List<Program> list) {
+            if ((this.title != null && !this.title.isBlank())
+                    || (this.applicationCode != null && !this.applicationCode.isBlank())) {
+                list.add(this);
+            }
+        }
+    }
 
     private static final String SOURCE_URL =
             "https://www.universityadmissions.se/intl/search?type=programs&advancedLevel=true&period=27&sortBy=creditAsc&subjects=120-&subjects=130-40-&subjects=130-180-&subjects=130-50-&numberOfFetchedPages=2";
@@ -58,82 +68,67 @@ public class App {
 
         // Try common containers for cards; add/fine-tune as needed.
         Elements cards = new Elements();
-        cards.addAll(doc.select("article, li, div"));
-        cards = cards.select(":matchesOwn((?i)credits|application code|language of instruction|tuition fee)").parents();
+        cards.addAll(doc.select(".searchresultcard"));
 
-        // If above is too restrictive, fall back to broader guesses for result cards:
-        if (cards.isEmpty()) {
-            cards = doc.select("article[class*=result], li[class*=result], div[class*=result], article, li, div");
-        }
+        Pattern headerInfoFirstLinePattern = Pattern.compile("(\\d+) Credits, (.+), Location: (.+)");
 
-        // Deduplicate by using only elements that look like *program result blocks* (contain a title-like header).
-        List<Element> resultBlocks = new ArrayList<>();
-        for (Element el : cards) {
-            if (!resultBlocks.contains(el) && looksLikeProgramBlock(el)) {
-                resultBlocks.add(el);
+        for (Element card : cards) {
+            String title = pickFirstText(card, "h3");
+
+            String headerInfoFirstLine = pickFirstText(card, ".header_info > p");
+            assert headerInfoFirstLine != null;
+            Matcher headerInfoFirstLineMatcher = headerInfoFirstLinePattern.matcher(headerInfoFirstLine);
+
+            int creditCount = 0;
+            String university = null;
+            String location = null;
+            if (headerInfoFirstLineMatcher.matches()) {
+                creditCount = Integer.parseInt(headerInfoFirstLineMatcher.group(1));
+                university = safe(headerInfoFirstLineMatcher.group(2));
+                location = safe(headerInfoFirstLineMatcher.group(3));
             }
-        }
 
-        for (Element card : resultBlocks) {
-            String title = pickFirstText(card,
-                    "h3 a", "h3", "h2 a", "h2", "[data-e2e=program-name]", "a[aria-label]"
-            );
+            String status = pickFirstText(card, ".applicable_status p");
 
-            String providerLine = pickFirstText(card,
-                    ".provider", ".university", ".institution", ".he-institution", ".hit-subtitle", "p:matches((?i)University|Institute|College)"
-            );
-            String university = providerLine;
 
-            String location = pickFirstText(card,
-                    ".location", "li:matches((?i)Location)", "p:matches((?i)Location)"
-            );
-            Integer creditCount = extractInt(pickFirstText(card, ":matches((?i)credits)"));
+            // course_details
+            Map<String, String> info = card.select(".resultcard_expanded p").stream()
+                    .map(e -> e.text().replaceAll("\\R", ""))
+                    .map(line -> line.split(":", 2))
+                    .filter(parts -> parts.length == 2)
+                    .collect(Collectors.toMap(
+                            parts -> parts[0].trim(),                    // key
+                            parts -> parts[1].trim(),                    // value
+                            (v1, v2) -> v1                         // merge function if duplicate keys
+                    ));
+            //System.out.printf("%s\n------\n%s\n\n", title, info);
 
-            String status = pickFirstText(card,
-                    ":matches((?i)Application period not open|Application open|Closed|Opens|Closes)"
-            );
-
-            Integer firstTuitionFee = extractMoneyByLabel(card, "(?i)First tuition fee");
-            Integer totalTuitionFee = extractMoneyByLabel(card, "(?i)Total tuition fee");
-
-            String period = getByLabel(card, "(?i)Period");
-            String level = coalesce(
-                    getByLabel(card, "(?i)Level"),
-                    pickFirstText(card, ":matches((?i)Master|Second-cycle|Advanced level)")
-            );
-            String language = coalesce(
-                    getByLabel(card, "(?i)Language of instruction"),
-                    getByLabel(card, "(?i)Language")
-            );
-            String applicationCode = getByLabel(card, "(?i)Application code");
-            String teachingForm = getByLabel(card, "(?i)Teaching form");
-            String paceOfStudy = getByLabel(card, "(?i)Pace of study");
-            String instructionalTime = getByLabel(card, "(?i)Instructional time");
-
-            String[] subjectAreas = splitSubjects(getByLabel(card, "(?i)Subject areas|Subject area|Subjects"));
-
-            // If still missing, try scanning the entire card text by friendly label extraction.
-            if (applicationCode == null || applicationCode.isBlank()) {
-                applicationCode = scanByLabelInText(card.text(), "(?i)Application code\\s*[:：]\\s*(\\S+)");
+            Integer firstTuitionFee = null, totalTuitionFee = null;
+            try {
+                firstTuitionFee = Integer.parseInt(
+                        info.getOrDefault("First tuition fee instalment", "")
+                                .replaceAll("[^0-9]", "")
+                );
+                totalTuitionFee = Integer.parseInt(
+                        info.getOrDefault("Total tuition fee", "")
+                                .replaceAll("[^0-9]", "")
+                );
+            } catch (NumberFormatException ignored) {
+                System.out.printf("Failed to parse tuition info for %s (%s)!\n", title, university);
             }
-            if (creditCount == null) {
-                creditCount = extractInt(scanByLabelInText(card.text(), "(?i)(\\d+)\\s*credits?"));
-            }
-            if (firstTuitionFee == null) firstTuitionFee = extractMoneyByRegex(card.text(), "(?i)First tuition fee\\s*[:：]?\\s*([\\d\\s.,]+)");
-            if (totalTuitionFee == null) totalTuitionFee = extractMoneyByRegex(card.text(), "(?i)Total tuition fee\\s*[:：]?\\s*([\\d\\s.,]+)");
 
-            // Cleanups
-            title = safe(title);
-            university = safe(university);
-            location = safe(location);
-            status = safe(status);
-            period = safe(period);
-            level = safe(level);
-            language = safe(language);
-            applicationCode = safe(applicationCode);
-            teachingForm = safe(teachingForm);
-            paceOfStudy = safe(paceOfStudy);
-            instructionalTime = safe(instructionalTime);
+            String period = info.getOrDefault("Period", null);
+            String level = info.getOrDefault("Level", null);
+            String language = info.getOrDefault("Language of instruction", null);
+            String applicationCode = info.getOrDefault("Application code", null);
+            String teachingForm = info.getOrDefault("Teaching form", null);
+            String paceOfStudy = info.getOrDefault("Pace of study", null);
+            String instructionalTime = info.getOrDefault("Instructional time", null);
+
+
+            String[] subjectAreas = Arrays.stream(
+                    info.getOrDefault("Subject Areas", null).split(",")
+            ).map(String::trim).toArray(String[]::new);
 
             Program p = new Program(
                     title,
@@ -153,10 +148,9 @@ public class App {
                     subjectAreas
             );
 
-            // Only add if we have at least a title or application code to identify the row
-            if ((p.title != null && !p.title.isBlank()) || (p.applicationCode != null && !p.applicationCode.isBlank())) {
-                list.add(p);
-            }
+            p.enterListIfEligible(list);
+            System.out.println(p);
+        /**/
         }
 
         return list;
@@ -181,16 +175,6 @@ public class App {
     }
 
     private static String getByLabel(Element root, String labelRegex) {
-        // Try <dl><dt>Label</dt><dd>Value</dd>
-        for (Element dt : root.select("dt")) {
-            if (dt.text().matches(labelRegex)) {
-                Element dd = dt.nextElementSibling();
-                if (dd != null && dd.tagName().equalsIgnoreCase("dd")) {
-                    String t = dd.text();
-                    if (t != null && !t.isBlank()) return t.trim();
-                }
-            }
-        }
         // Try generic "Label: Value" in <li> or <p>
         for (Element el : root.select("li, p, div")) {
             String t = el.text();
