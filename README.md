@@ -2,7 +2,6 @@
 
 A small Java app that scrapes master-level programs from UniversityAdmissions.se, parses key fields into a `Program` record, and stores the results in PostgreSQL. It can run as a JVM app or be compiled into a single native binary with GraalVM.
 
----
 
 ## Features
 
@@ -21,7 +20,6 @@ A small Java app that scrapes master-level programs from UniversityAdmissions.se
 - Creates a daily table with today’s date: `"programs_YYYY-MM-DD"` (quoted because of the dashes).
 - Adds `created_at TIMESTAMP NOT NULL` per row.
 
----
 
 ## Requirements
 
@@ -32,7 +30,6 @@ A small Java app that scrapes master-level programs from UniversityAdmissions.se
   - User: empty (no password)
 - Internet access from the machine (to fetch the page).
 
----
 
 ## Project Layout
 
@@ -44,7 +41,6 @@ A small Java app that scrapes master-level programs from UniversityAdmissions.se
 
 The main class is `me.fekri.scrapper.App`.
 
----
 
 ## Configuration
 
@@ -63,7 +59,6 @@ CREATE USER se_edu;
 GRANT ALL PRIVILEGES ON DATABASE se_edu TO se_edu;
 ```
 
----
 
 ## Build & Run (JVM)
 
@@ -93,7 +88,6 @@ On success, you’ll see logs about parsed programs.
 [main] INFO me.fekri.scrapper.App - Done.
 ```
 
----
 
 ## Build a Native Binary (GraalVM)
 
@@ -140,7 +134,6 @@ native-image   --no-fallback   --enable-url-protocols=http,https   -H:+ReportExc
 > --initialize-at-run-time=org.postgresql.Driver
 > ```
 
----
 
 ## Example SQL
 
@@ -159,12 +152,10 @@ FROM "programs_2025-08-17"
 WHERE 'Computer Science' = ANY(subject_areas);
 ```
 
----
 
 ## License
 MIT License
 
----
 
 ## Credits
 
