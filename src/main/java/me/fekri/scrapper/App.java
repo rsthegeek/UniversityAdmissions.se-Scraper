@@ -110,7 +110,7 @@ public class App {
 
 
             String[] subjectAreas = Arrays.stream(
-                    info.getOrDefault("Subject Areas", null).split(",")
+                    info.getOrDefault("Subject Areas", "").split(",")
             ).map(String::trim).toArray(String[]::new);
 
             Program p = new Program(
