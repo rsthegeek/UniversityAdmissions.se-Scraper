@@ -2,7 +2,8 @@ package me.fekri.scrapper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -17,26 +18,28 @@ import java.util.stream.Collectors;
 
 public class App {
 
+    private static final Logger log = LoggerFactory.getLogger(App.class);
+
     private static final String SOURCE_URL =
             "https://www.universityadmissions.se/intl/search?type=programs&advancedLevel=true&period=27&sortBy=creditAsc&subjects=120-&subjects=130-40-&subjects=130-180-&subjects=130-50-&numberOfFetchedPages=2";
 
     public static void main(String[] args) throws Exception {
         // 1) Fetch & parse
-        System.out.println("Fetching...");
+        log.info("Fetching...");
         Document doc = Jsoup.connect(SOURCE_URL)
                 .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36")
                 .referrer("https://www.google.com")
                 .timeout(30_000)
                 .get();
 
-        System.out.println("Parsing...");
+        log.info("Parsing...");
         List<Program> programs = parsePrograms(doc);
-        System.out.printf("\t%,3d Parsed programs\n", programs.size());
+        log.info("%,3d Parsed programs".formatted(programs.size()));
 
         // 2) Save to Postgres
         LocalDate today = LocalDate.now(); // Europe/Helsinki is your local TZ; this uses system default.
         saveToPostgres(programs, today);
-        System.out.println("Done.");
+        log.info("Done.");
     }
 
     // --- Scraping logic ---
@@ -127,8 +130,8 @@ public class App {
                     ? ineligiblesCount
                     : ineligiblesCount + 1;
         }
-        System.out.printf("\t%,3d No tuition info\n", noTuitionInfoCount);
-        System.out.printf("\t%,3d Ineligibles\n", ineligiblesCount);
+        log.info("%,3d No tuition info".formatted(noTuitionInfoCount));
+        log.info("%,3d Ineligibles".formatted(ineligiblesCount));
 
         return list;
     }
@@ -136,7 +139,7 @@ public class App {
     // --- Database logic ---
     private static void saveToPostgres(List<Program> programs, LocalDate date) throws SQLException {
         if (programs.isEmpty()) {
-            System.out.println("No programs parsed. Creating an empty table anyway.");
+            log.warn("No programs parsed. Creating an empty table anyway.");
         }
 
         String tableName = "programs_" + date; // YYYY-MM-DD
