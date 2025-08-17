@@ -1,0 +1,67 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-native:
+    name: Build native (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup GraalVM 21
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm"
+          components: "native-image"
+          cache: "maven"
+
+      - name: Build JAR
+        run: mvn -B -DskipTests package
+
+      - name: Build native image (mvn -Pnative native:compile also works if you define a profile)
+        run: mvn -B -DskipTests org.graalvm.buildtools:native-maven-plugin:compile-no-fork
+
+      - name: Rename artifacts per-OS
+        shell: bash
+        run: |
+          # Binary produced at target/ua-scraper
+          BIN="target/ua-scraper"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "Windows not targeted in this matrix."
+            exit 1
+          fi
+          cp "$BIN" "ua-scraper-${{ runner.os }}"
+
+          # Keep your non-shaded JAR as-is
+          cp target/UniversityAdmissionsSeScrapper-*.jar "UniversityAdmissionsSeScrapper-${{ runner.os }}.jar"
+
+      - name: Upload artifacts (CI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ runner.os }}
+          path: |
+            ua-scraper-${{ runner.os }}
+            UniversityAdmissionsSeScrapper-${{ runner.os }}.jar
+
+      - name: Create GitHub Release (tag push only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ua-scraper-${{ runner.os }}
+            UniversityAdmissionsSeScrapper-${{ runner.os }}.jar
+          draft: false
+          prerelease: false
