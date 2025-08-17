@@ -33,11 +33,12 @@ public class App {
             String instructionalTime,
             String[] subjectAreas          // as requested: array of strings
     ) {
-        public void enterListIfEligible(List<Program> list) {
+        public boolean enterListIfEligible(List<Program> list) {
             if ((this.title != null && !this.title.isBlank())
                     || (this.applicationCode != null && !this.applicationCode.isBlank())) {
-                list.add(this);
+                return list.add(this);
             }
+            return false;
         }
     }
 
@@ -65,6 +66,7 @@ public class App {
 
     private static List<Program> parsePrograms(Document doc) {
         List<Program> list = new ArrayList<>();
+        int ineligiblesCount = 0;
 
         // Try common containers for cards; add/fine-tune as needed.
         Elements cards = new Elements();
@@ -147,10 +149,11 @@ public class App {
                     subjectAreas
             );
 
-            p.enterListIfEligible(list);
-            System.out.println(p);
-        /**/
+            ineligiblesCount = p.enterListIfEligible(list)
+                    ? ineligiblesCount
+                    : ineligiblesCount + 1;
         }
+        System.out.printf("Ineligibles: %d\n", ineligiblesCount);
 
         return list;
     }
