@@ -16,32 +16,6 @@ import java.util.stream.Collectors;
 
 public class App {
 
-    public record Program(
-            String title,
-            Integer creditCount,
-            String university,
-            String location,
-            String status,                 // e.g., "Application period not open"
-            Integer firstTuitionFee,       // in SEK (numbers only) if found, else null
-            Integer totalTuitionFee,       // in SEK (numbers only) if found, else null
-            String period,
-            String level,
-            String languageOfInstruction,
-            String applicationCode,
-            String teachingForm,
-            String paceOfStudy,
-            String instructionalTime,
-            String[] subjectAreas          // as requested: array of strings
-    ) {
-        public boolean enterListIfEligible(List<Program> list) {
-            if ((this.title != null && !this.title.isBlank())
-                    || (this.applicationCode != null && !this.applicationCode.isBlank())) {
-                return list.add(this);
-            }
-            return false;
-        }
-    }
-
     private static final String SOURCE_URL =
             "https://www.universityadmissions.se/intl/search?type=programs&advancedLevel=true&period=27&sortBy=creditAsc&subjects=120-&subjects=130-40-&subjects=130-180-&subjects=130-50-&numberOfFetchedPages=2";
 
@@ -155,12 +129,6 @@ public class App {
         System.out.printf("Ineligibles: %d\n", ineligiblesCount);
 
         return list;
-    }
-
-    private static String safe(String s) {
-        if (s == null) return null;
-        String t = s.replace('\u00A0', ' ').trim();
-        return t.isBlank() ? null : t;
     }
 
     // --- Database logic ---
