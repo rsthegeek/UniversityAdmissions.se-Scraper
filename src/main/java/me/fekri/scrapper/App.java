@@ -73,10 +73,9 @@ public class App {
         Pattern headerInfoFirstLinePattern = Pattern.compile("(\\d+) Credits, (.+), Location: (.+)");
 
         for (Element card : cards) {
-            String title = pickFirstText(card, "h3");
+            String title = card.select("h3").text().trim();
 
-            String headerInfoFirstLine = pickFirstText(card, ".header_info > p");
-            assert headerInfoFirstLine != null;
+            String headerInfoFirstLine = card.select(".header_info > p").text().trim();
             Matcher headerInfoFirstLineMatcher = headerInfoFirstLinePattern.matcher(headerInfoFirstLine);
 
             int creditCount = 0;
@@ -88,7 +87,7 @@ public class App {
                 location = safe(headerInfoFirstLineMatcher.group(3));
             }
 
-            String status = pickFirstText(card, ".applicable_status p");
+            String status = card.select(".applicable_status p").text().trim();
 
 
             // course_details
@@ -154,84 +153,6 @@ public class App {
         }
 
         return list;
-    }
-
-    private static boolean looksLikeProgramBlock(Element el) {
-        String text = el.text();
-        return text != null && text.matches("(?is).*\\b(credits?|Application code|Language of instruction|tuition fee|Master|Second-cycle|Advanced level)\\b.*");
-    }
-
-    private static String pickFirstText(Element root, String... selectors) {
-        for (String sel : selectors) {
-            Elements hits = root.select(sel);
-            if (!hits.isEmpty()) {
-                for (Element h : hits) {
-                    String t = h.text();
-                    if (t != null && !t.isBlank()) return t.trim();
-                }
-            }
-        }
-        return null;
-    }
-
-    private static String getByLabel(Element root, String labelRegex) {
-        // Try generic "Label: Value" in <li> or <p>
-        for (Element el : root.select("li, p, div")) {
-            String t = el.text();
-            if (t != null && t.matches("(?is).*" + labelRegex + ".*")) {
-                String val = t.replaceAll("(?is).*" + labelRegex + "\\s*[:：]?\\s*", "");
-                val = val.replaceAll("\\s*\\|.*$", ""); // cut at separators
-                if (!val.isBlank()) return val.trim();
-            }
-        }
-        return null;
-    }
-
-    private static String scanByLabelInText(String text, String regex) {
-        if (text == null) return null;
-        Matcher m = Pattern.compile(regex).matcher(text);
-        if (m.find()) return m.group(1).trim();
-        return null;
-    }
-
-    private static Integer extractInt(String s) {
-        if (s == null) return null;
-        Matcher m = Pattern.compile("(\\d{1,5})").matcher(s.replaceAll("\\s+", ""));
-        if (m.find()) {
-            try { return Integer.parseInt(m.group(1)); } catch (Exception ignored) {}
-        }
-        return null;
-    }
-
-    private static Integer extractMoneyByLabel(Element root, String labelRegex) {
-        String text = getByLabel(root, labelRegex);
-        return extractMoneyByRegex(text, "([\\d\\s.,]+)");
-    }
-
-    private static Integer extractMoneyByRegex(String text, String valueRegex) {
-        if (text == null) return null;
-        Matcher m = Pattern.compile(valueRegex).matcher(text);
-        if (m.find()) {
-            String num = m.group(1).replaceAll("[^\\d]", "");
-            if (!num.isBlank()) {
-                try {
-                    return Integer.parseInt(num);
-                } catch (NumberFormatException ignored) {}
-            }
-        }
-        return null;
-    }
-
-    private static String[] splitSubjects(String s) {
-        if (s == null || s.isBlank()) return new String[0];
-        // split by comma or " • " or "/" etc.
-        String[] parts = s.split("\\s*[•,|/；;]\\s*");
-        List<String> cleaned = new ArrayList<>();
-        for (String p : parts) {
-            String t = p.trim();
-            if (!t.isBlank()) cleaned.add(t);
-        }
-        return cleaned.toArray(new String[0]);
     }
 
     private static String safe(String s) {
@@ -316,12 +237,5 @@ public class App {
 
             conn.commit();
         }
-    }
-
-    private static String coalesce(String first, String second) {
-        if (first != null && !first.isBlank()) {
-            return first;
-        }
-        return (second != null && !second.isBlank()) ? second : null;
     }
 }
