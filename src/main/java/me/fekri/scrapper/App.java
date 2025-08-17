@@ -20,13 +20,18 @@ public class App {
 
     private static final Logger log = LoggerFactory.getLogger(App.class);
 
-    private static final String SOURCE_URL =
+    private static final String DEFAULT_URL =
             "https://www.universityadmissions.se/intl/search?type=programs&advancedLevel=true&period=27&sortBy=creditAsc&subjects=120-&subjects=130-40-&subjects=130-180-&subjects=130-50-&numberOfFetchedPages=2";
 
     public static void main(String[] args) throws Exception {
+        String url = (args.length > 0 && args[0] != null && !args[0].isBlank())
+                ? args[0]
+                : DEFAULT_URL;
+
+        log.info("Scraping: " + url);
         // 1) Fetch & parse
         log.info("Fetching...");
-        Document doc = Jsoup.connect(SOURCE_URL)
+        Document doc = Jsoup.connect(url)
                 .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36")
                 .referrer("https://www.google.com")
                 .timeout(30_000)
