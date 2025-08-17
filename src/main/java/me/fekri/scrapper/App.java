@@ -31,7 +31,7 @@ public class App {
 
         System.out.println("Parsing...");
         List<Program> programs = parsePrograms(doc);
-        System.out.println("\tParsed programs: " + programs.size());
+        System.out.printf("\t%,3d Parsed programs\n", programs.size());
 
         // 2) Save to Postgres
         LocalDate today = LocalDate.now(); // Europe/Helsinki is your local TZ; this uses system default.
@@ -127,8 +127,8 @@ public class App {
                     ? ineligiblesCount
                     : ineligiblesCount + 1;
         }
-        System.out.printf("\tNo tuition info: %d\n", noTuitionInfoCount);
-        System.out.printf("\tIneligibles: %d\n", ineligiblesCount);
+        System.out.printf("\t%,3d No tuition info\n", noTuitionInfoCount);
+        System.out.printf("\t%,3d Ineligibles\n", ineligiblesCount);
 
         return list;
     }
