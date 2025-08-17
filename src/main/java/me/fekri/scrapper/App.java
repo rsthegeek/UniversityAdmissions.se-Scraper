@@ -1,10 +1,10 @@
 package me.fekri.scrapper;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
