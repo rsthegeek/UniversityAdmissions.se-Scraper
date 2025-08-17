@@ -20,11 +20,15 @@ public record Program(
         String[] subjectAreas          // as requested: array of strings
 ) {
     public boolean enterListIfEligible(List<Program> list) {
-        if ((this.title != null && !this.title.isBlank())
-                || (this.applicationCode != null && !this.applicationCode.isBlank())) {
+        if (isEligible()) {
             return list.add(this);
         }
         return false;
+    }
+
+    private boolean isEligible() {
+        return (this.title != null && !this.title.isBlank())
+                || (this.applicationCode != null && !this.applicationCode.isBlank());
     }
 
     private static String clean(String s) {
