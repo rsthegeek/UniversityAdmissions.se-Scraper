@@ -68,7 +68,6 @@ public class App {
         List<Program> list = new ArrayList<>();
         int ineligiblesCount = 0;
 
-        // Try common containers for cards; add/fine-tune as needed.
         Elements cards = new Elements();
         cards.addAll(doc.select(".searchresultcard"));
 
@@ -92,15 +91,15 @@ public class App {
             String status = card.select(".applicable_status p").text().trim();
 
 
-            // course_details
+            // Data that will be shown after clicking on the card
             Map<String, String> info = card.select(".resultcard_expanded p").stream()
                     .map(e -> e.text().replaceAll("\\R", ""))
                     .map(line -> line.split(":", 2))
                     .filter(parts -> parts.length == 2)
                     .collect(Collectors.toMap(
-                            parts -> parts[0].trim(),                    // key
-                            parts -> parts[1].trim(),                    // value
-                            (v1, v2) -> v1                         // merge function if duplicate keys
+                            parts -> parts[0].trim(), // key
+                            parts -> parts[1].trim(), // value
+                            (v1, v2) -> v1      // merge function if duplicate keys
                     ));
             //System.out.printf("%s\n------\n%s\n\n", title, info);
 
@@ -115,7 +114,7 @@ public class App {
                                 .replaceAll("[^0-9]", "")
                 );
             } catch (NumberFormatException ignored) {
-                System.out.printf("Failed to parse tuition info for %s (%s)!\n", title, university);
+                System.out.printf("No tuition info for %s (%s)!\n", title, university);
             }
 
             String period = info.getOrDefault("Period", null);
