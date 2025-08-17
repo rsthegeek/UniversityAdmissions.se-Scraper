@@ -56,6 +56,47 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <plugin>
+                <groupId>org.graalvm.buildtools</groupId>
+                <artifactId>native-maven-plugin</artifactId>
+                <version>0.10.2</version>
+                <executions>
+                    <execution>
+                        <id>build-native</id>
+                        <goals>
+                            <goal>compile-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!-- Name of the binary -->
+                    <imageName>ua-scraper</imageName>
+                    <buildArgs>
+                        <!-- Extra GraalVM flags -->
+                        <buildArg>--no-fallback</buildArg>
+                        <buildArg>--enable-url-protocols=http,https</buildArg>
+                        <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                        <!-- Useful if Postgres driver needs it -->
+                        <!-- <buildArg>- -initialize-at-run-time=org.postgresql.Driver</buildArg> -->
+                    </buildArgs>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
