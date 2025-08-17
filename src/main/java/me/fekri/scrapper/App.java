@@ -6,6 +6,7 @@ import org.jsoup.select.Elements;
 
 import java.sql.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -146,25 +147,26 @@ public class App {
         try (Connection conn = DriverManager.getConnection(url, null, null)) {
             conn.setAutoCommit(false);
 
-            // Create table if not exists (use dynamic SQL with quoted name)
+            // Create the table if not exists (use dynamic SQL with quoted name)
             String createSql = """
                     CREATE TABLE IF NOT EXISTS %s (
                         id SERIAL PRIMARY KEY,
-                        title TEXT,
+                        title VARCHAR,
                         credit_count INT,
-                        university TEXT,
-                        location TEXT,
-                        status TEXT,
+                        university VARCHAR,
+                        location VARCHAR,
+                        status VARCHAR,
                         first_tuition_fee INT,
                         total_tuition_fee INT,
-                        period TEXT,
-                        level TEXT,
-                        language_of_instruction TEXT,
-                        application_code TEXT,
-                        teaching_form TEXT,
-                        pace_of_study TEXT,
-                        instructional_time TEXT,
-                        subject_areas TEXT[]
+                        period VARCHAR,
+                        level VARCHAR,
+                        language_of_instruction VARCHAR,
+                        application_code VARCHAR,
+                        teaching_form VARCHAR,
+                        pace_of_study VARCHAR,
+                        instructional_time VARCHAR,
+                        subject_areas VARCHAR[],
+                        created_at TIMESTAMP NOT NULL
                     );
                     """.formatted(quoted);
 
@@ -176,9 +178,11 @@ public class App {
                     INSERT INTO %s
                     (title, credit_count, university, location, status, first_tuition_fee, total_tuition_fee,
                      period, level, language_of_instruction, application_code, teaching_form,
-                     pace_of_study, instructional_time, subject_areas)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                     pace_of_study, instructional_time, subject_areas, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                     """.formatted(quoted);
+
+            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 
             try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
                 for (Program p : programs) {
@@ -199,6 +203,7 @@ public class App {
 
                     Array arr = conn.createArrayOf("text", p.subjectAreas() == null ? new String[0] : p.subjectAreas());
                     ps.setArray(15, arr);
+                    ps.setTimestamp(16, now);
 
                     ps.addBatch();
                 }
