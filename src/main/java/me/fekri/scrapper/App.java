@@ -22,14 +22,16 @@ public class App {
 
     public static void main(String[] args) throws Exception {
         // 1) Fetch & parse
+        System.out.println("Fetching...");
         Document doc = Jsoup.connect(SOURCE_URL)
                 .userAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36")
                 .referrer("https://www.google.com")
                 .timeout(30_000)
                 .get();
 
+        System.out.println("Parsing...");
         List<Program> programs = parsePrograms(doc);
-        System.out.println("Parsed programs: " + programs.size());
+        System.out.println("\tParsed programs: " + programs.size());
 
         // 2) Save to Postgres
         LocalDate today = LocalDate.now(); // Europe/Helsinki is your local TZ; this uses system default.
@@ -38,17 +40,14 @@ public class App {
     }
 
     // --- Scraping logic ---
-
     private static List<Program> parsePrograms(Document doc) {
         List<Program> list = new ArrayList<>();
         int ineligiblesCount = 0;
-
-        Elements cards = new Elements();
-        cards.addAll(doc.select(".searchresultcard"));
+        int noTuitionInfoCount = 0;
 
         Pattern headerInfoFirstLinePattern = Pattern.compile("(\\d+) Credits, (.+), Location: (.+)");
 
-        for (Element card : cards) {
+        for (Element card : doc.select(".searchresultcard")) {
             String title = card.select("h3").text().trim();
 
             String headerInfoFirstLine = card.select(".header_info > p").text().trim();
@@ -59,8 +58,8 @@ public class App {
             String location = null;
             if (headerInfoFirstLineMatcher.matches()) {
                 creditCount = Integer.parseInt(headerInfoFirstLineMatcher.group(1));
-                university = safe(headerInfoFirstLineMatcher.group(2));
-                location = safe(headerInfoFirstLineMatcher.group(3));
+                university = headerInfoFirstLineMatcher.group(2);
+                location = headerInfoFirstLineMatcher.group(3);
             }
 
             String status = card.select(".applicable_status p").text().trim();
@@ -89,7 +88,8 @@ public class App {
                                 .replaceAll("[^0-9]", "")
                 );
             } catch (NumberFormatException ignored) {
-                System.out.printf("No tuition info for %s (%s)!\n", title, university);
+                //System.out.printf("No tuition info for %s (%s)!\n", title, university);
+                noTuitionInfoCount++;
             }
 
             String period = info.getOrDefault("Period", null);
@@ -127,13 +127,13 @@ public class App {
                     ? ineligiblesCount
                     : ineligiblesCount + 1;
         }
-        System.out.printf("Ineligibles: %d\n", ineligiblesCount);
+        System.out.printf("\tNo tuition info: %d\n", noTuitionInfoCount);
+        System.out.printf("\tIneligibles: %d\n", ineligiblesCount);
 
         return list;
     }
 
     // --- Database logic ---
-
     private static void saveToPostgres(List<Program> programs, LocalDate date) throws SQLException {
         if (programs.isEmpty()) {
             System.out.println("No programs parsed. Creating an empty table anyway.");
@@ -143,7 +143,7 @@ public class App {
         String quoted = "\"" + tableName + "\""; // because '-' needs quoting in identifiers
 
         String url = "jdbc:postgresql://localhost:5432/se_edu";
-        // no password:
+
         try (Connection conn = DriverManager.getConnection(url, null, null)) {
             conn.setAutoCommit(false);
 
